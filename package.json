@@ -4,8 +4,16 @@
   "description": "Local worklog, reporting, and time-based point allocation for AI coding agents",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gepeiyu/agent-worklog.git"
+  },
+  "homepage": "https://github.com/gepeiyu/agent-worklog#readme",
+  "bugs": {
+    "url": "https://github.com/gepeiyu/agent-worklog/issues"
+  },
   "bin": {
-    "agent-worklog": "./bin/cli.js"
+    "agent-worklog": "bin/cli.js"
   },
   "files": [
     "bin/",

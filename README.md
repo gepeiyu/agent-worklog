@@ -153,10 +153,22 @@ agent-worklog dashboard
 
 For local-only use, `npm link` provides the same global-command behavior as an installed package.
 
-`@gepeiyu/agent-worklog` is a scoped package. Publish it publicly with:
+Tag pushes are published automatically by [`.github/workflows/publish.yml`](.github/workflows/publish.yml). The workflow uses npm Trusted Publishing through GitHub Actions OIDC, so it does not require an `NPM_TOKEN` repository secret.
+
+Before the first automated release, open the package settings on npm and add a GitHub Actions trusted publisher with these exact values:
+
+- Organization or user: `gepeiyu`
+- Repository: `agent-worklog`
+- Workflow filename: `publish.yml`
+- Environment: leave empty
+
+Create a release by updating the package version and pushing the resulting commit and tag:
 
 ```bash
-npm publish --access public
+npm version patch
+git push origin main --follow-tags
 ```
 
-`package.json` already contains `publishConfig.access: "public"`. Running `npm run pack:check` before publishing is still recommended.
+The tag must exactly match `v` followed by the version in `package.json`, for example `v0.2.0`. The workflow rejects mismatched tags, runs the test suite and package-content check, then publishes the public package with provenance. Do not create a `v0.1.0` tag because that version has already been published.
+
+For an emergency manual release, `package.json` already contains `publishConfig.access: "public"`; run `npm publish --access public` from an authenticated local checkout.

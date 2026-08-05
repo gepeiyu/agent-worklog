@@ -151,10 +151,22 @@ agent-worklog dashboard
 
 只在本机使用时，`npm link` 的效果与全局发布后安装相同。
 
-`@gepeiyu/agent-worklog` 是 scoped 包。公开发布时需要：
+推送 tag 后，[`.github/workflows/publish.yml`](.github/workflows/publish.yml) 会自动发布。工作流通过 GitHub Actions OIDC 使用 npm Trusted Publishing，不需要在 GitHub 仓库中保存 `NPM_TOKEN`。
+
+首次自动发布前，需要在 npm 的包设置中添加 GitHub Actions trusted publisher，配置值必须为：
+
+- Organization or user：`gepeiyu`
+- Repository：`agent-worklog`
+- Workflow filename：`publish.yml`
+- Environment：留空
+
+发布新版本时，更新版本号并推送对应提交和 tag：
 
 ```bash
-npm publish --access public
+npm version patch
+git push origin main --follow-tags
 ```
 
-`package.json` 已包含 `publishConfig.access: "public"`，仍建议发布前运行 `npm run pack:check` 检查包内容。
+tag 必须严格等于 `v` 加 `package.json` 中的版本号，例如 `v0.2.0`。工作流会拒绝版本不匹配的 tag，运行测试和发布包检查，然后附带 provenance 公开发布。`0.1.0` 已经发布，不要再创建 `v0.1.0` tag。
+
+需要紧急手动发布时，`package.json` 已包含 `publishConfig.access: "public"`；在本地完成 npm 登录后运行 `npm publish --access public`。
