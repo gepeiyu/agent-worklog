@@ -21,6 +21,7 @@ program
   .option("--platforms <list>", "comma-separated platforms for non-interactive use")
   .option("--language <language>", "worklog language: zh-CN, ja-JP, or en")
   .option("--hook-command <command>", "override the command prefix written to hooks")
+  .option("--start-dashboard", "start the dashboard after installation")
   .action(runInstall);
 
 program

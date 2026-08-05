@@ -1,4 +1,4 @@
-import { checkbox, select } from "@inquirer/prompts";
+import { checkbox, confirm, select } from "@inquirer/prompts";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -9,12 +9,31 @@ import {
   getSummaryLanguageName,
   validateLanguage
 } from "../languages.js";
+import { runDashboard } from "./dashboard.js";
 import { getDataPaths, initializeStore, writeConfig } from "../store/db.js";
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const TEMPLATES_ROOT = path.join(PACKAGE_ROOT, "templates");
 const SUPPORTED_PLATFORMS = ["claude", "codex", "cursor"];
 const DEFAULT_HOOK_COMMAND = "npx --yes @gepeiyu/agent-worklog";
+
+const DASHBOARD_PROMPTS = {
+  "zh-CN": "是否立即启动仪表盘？",
+  "ja-JP": "ダッシュボードを今すぐ起動しますか？",
+  en: "Start the dashboard now?"
+};
+
+const DASHBOARD_START_MESSAGES = {
+  "zh-CN": "正在启动仪表盘，按 Ctrl+C 停止。",
+  "ja-JP": "ダッシュボードを起動しています。Ctrl+C で停止します。",
+  en: "Starting the dashboard. Press Ctrl+C to stop."
+};
+
+const CODEX_TRUST_MESSAGES = {
+  "zh-CN": "Codex：重启后运行 /hooks，审核并信任 agent-worklog 的 UserPromptSubmit 和 Stop hooks。未信任的 hooks 不会运行。",
+  "ja-JP": "Codex：再起動後に /hooks を開き、agent-worklog の UserPromptSubmit と Stop hooks を確認して信頼してください。信頼されていない hooks は実行されません。",
+  en: "Codex: after restarting, open /hooks and review and trust the agent-worklog UserPromptSubmit and Stop hooks. Untrusted hooks do not run."
+};
 
 const INSTALL_TARGETS = {
   claude: {
@@ -85,9 +104,10 @@ export async function installIntegrations({
 }
 
 export async function runInstall(options) {
+  const interactive = Boolean(process.stdin.isTTY);
   let language = options.language;
   if (!language) {
-    if (!process.stdin.isTTY) {
+    if (!interactive) {
       throw new Error(
         "Non-interactive install requires --language zh-CN, ja-JP, or en"
       );
@@ -103,7 +123,7 @@ export async function runInstall(options) {
   if (options.platforms) {
     platforms = options.platforms.split(",").map((value) => value.trim()).filter(Boolean);
   } else {
-    if (!process.stdin.isTTY) {
+    if (!interactive) {
       throw new Error("Interactive install needs a TTY; use --platforms claude,codex,cursor");
     }
     platforms = await checkbox({
@@ -131,6 +151,39 @@ export async function runInstall(options) {
   for (const file of result.writtenFiles) {
     process.stdout.write(`- ${formatHomePath(file, result.homeDirectory)}\n`);
   }
+  if (result.platforms.includes("codex")) {
+    process.stdout.write(`${CODEX_TRUST_MESSAGES[result.language]}\n`);
+  }
+
+  const shouldStartDashboard = await resolveDashboardStart({
+    requested: options.startDashboard,
+    interactive,
+    language: result.language
+  });
+  if (shouldStartDashboard) {
+    process.stdout.write(`${DASHBOARD_START_MESSAGES[result.language]}\n`);
+    await runDashboard({
+      host: "127.0.0.1",
+      port: 4789,
+      open: interactive
+    });
+  }
+}
+
+export async function resolveDashboardStart({
+  requested = false,
+  interactive = Boolean(process.stdin.isTTY),
+  language = DEFAULT_LANGUAGE,
+  prompt = confirm
+} = {}) {
+  if (requested) return true;
+  if (!interactive) return false;
+
+  const selectedLanguage = validateLanguage(language);
+  return prompt({
+    message: DASHBOARD_PROMPTS[selectedLanguage],
+    default: true
+  });
 }
 
 export function mergeHookConfig(existing, template) {

@@ -3,7 +3,42 @@ import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { installIntegrations } from "../src/commands/install.js";
+import {
+  installIntegrations,
+  resolveDashboardStart
+} from "../src/commands/install.js";
+
+test("interactive installs ask to start the dashboard in the selected language", async () => {
+  let receivedOptions;
+  const shouldStart = await resolveDashboardStart({
+    interactive: true,
+    language: "ja-JP",
+    prompt: async (options) => {
+      receivedOptions = options;
+      return true;
+    }
+  });
+
+  assert.equal(shouldStart, true);
+  assert.equal(receivedOptions.default, true);
+  assert.match(receivedOptions.message, /ダッシュボード/);
+});
+
+test("non-interactive installs start the dashboard only when explicitly requested", async () => {
+  const unexpectedPrompt = async () => {
+    throw new Error("non-interactive install must not prompt");
+  };
+
+  assert.equal(await resolveDashboardStart({
+    interactive: false,
+    prompt: unexpectedPrompt
+  }), false);
+  assert.equal(await resolveDashboardStart({
+    requested: true,
+    interactive: false,
+    prompt: unexpectedPrompt
+  }), true);
+});
 
 test("installs user-level integrations, preserves hooks, and remains idempotent", async () => {
   const homeDirectory = await mkdtemp(path.join(os.tmpdir(), "agent-worklog-install-"));

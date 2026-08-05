@@ -39,7 +39,7 @@ const messages = {
     allocatedPoints: "已重新分配 {points} 点",
     requestFailed: "请求失败：{message}",
     errorTotalRequired: "请输入当日总点数",
-    errorNoRecords: "当前筛选条件下没有可分配点数的记录",
+    errorNoRecords: "所选日期没有可分配点数的记录",
     errorNonNegative: "总点数必须是非负数",
     errorHalfPoint: "总点数必须是 0.5 的倍数",
     errorTooLarge: "总点数过大",
@@ -85,7 +85,7 @@ const messages = {
     allocatedPoints: "{points} ポイントを再配分しました",
     requestFailed: "リクエストに失敗しました：{message}",
     errorTotalRequired: "当日の合計ポイントを入力してください",
-    errorNoRecords: "現在のフィルター条件に配分可能な記録がありません",
+    errorNoRecords: "選択した日付に配分可能な記録がありません",
     errorNonNegative: "合計ポイントは 0 以上で入力してください",
     errorHalfPoint: "合計ポイントは 0.5 単位で入力してください",
     errorTooLarge: "合計ポイントが大きすぎます",
@@ -131,7 +131,7 @@ const messages = {
     allocatedPoints: "Reallocated {points} points",
     requestFailed: "Request failed: {message}",
     errorTotalRequired: "Enter the daily total points",
-    errorNoRecords: "No records in the current filter can receive points",
+    errorNoRecords: "No records on the selected date can receive points",
     errorNonNegative: "Total points must be a non-negative number",
     errorHalfPoint: "Total points must be a multiple of 0.5",
     errorTooLarge: "Total points is too large",
@@ -267,12 +267,12 @@ function refreshSelectLabels() {
 
 function render(result) {
   state.result = result;
-  const { filters, dataFile, records, stats } = result;
+  const { filters, dataFile, records, stats, dailyStats = stats } = result;
   elements.recordCount.textContent = String(stats.completedCount);
   elements.totalDuration.textContent = formatDuration(stats.totalDurationSeconds);
   elements.totalPoints.textContent = Number(stats.totalPoints).toFixed(1);
   if (document.activeElement !== elements.pointTotal) {
-    elements.pointTotal.value = Number(stats.totalPoints).toFixed(1);
+    elements.pointTotal.value = Number(dailyStats.totalPoints).toFixed(1);
   }
   elements.rangeCaption.textContent = filters.date;
   elements.dataFile.textContent = dataFile;

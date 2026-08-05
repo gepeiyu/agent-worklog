@@ -57,12 +57,17 @@ async function handleRequest(request, response) {
 
   if (request.method === "GET" && url.pathname === "/api/records") {
     const filters = queryFilters(url.searchParams);
-    const records = await listRecords(toStoreFilters(filters));
+    const storeFilters = toStoreFilters(filters);
+    const records = await listRecords(storeFilters);
+    const dailyRecords = filters.platform || filters.project
+      ? await listRecords(toDailyStoreFilters(filters.date))
+      : records;
     sendJson(response, 200, {
       filters,
       dataFile: getDailyEventsFile(filters.date),
       records,
-      stats: getRecordStats(records)
+      stats: getRecordStats(records),
+      dailyStats: getRecordStats(dailyRecords)
     });
     return;
   }
@@ -78,16 +83,20 @@ async function handleRequest(request, response) {
       project: body.project || null
     };
     const storeFilters = toStoreFilters(filters);
+    const dailyStoreFilters = toDailyStoreFilters(filters.date);
     let allocation;
     try {
       allocation = await setPointsForScope({
-        filters: storeFilters,
+        filters: dailyStoreFilters,
         totalPoints: body.total
       });
     } catch (error) {
       throw badRequest(error.message);
     }
-    const records = await listRecords(storeFilters);
+    const dailyRecords = await listRecords(dailyStoreFilters);
+    const records = filters.platform || filters.project
+      ? await listRecords(storeFilters)
+      : dailyRecords;
     sendJson(response, 200, {
       allocation: {
         id: allocation.id,
@@ -97,7 +106,8 @@ async function handleRequest(request, response) {
       filters,
       dataFile: getDailyEventsFile(filters.date),
       records,
-      stats: getRecordStats(records)
+      stats: getRecordStats(records),
+      dailyStats: getRecordStats(dailyRecords)
     });
     return;
   }
@@ -134,6 +144,15 @@ function toStoreFilters(filters) {
     to: filters.date,
     platform: filters.platform,
     project: filters.project
+  };
+}
+
+function toDailyStoreFilters(date) {
+  return {
+    from: date,
+    to: date,
+    platform: null,
+    project: null
   };
 }
 

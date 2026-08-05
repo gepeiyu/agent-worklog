@@ -38,6 +38,48 @@ test("records a Claude turn and injects the summary instruction", async () => {
   assert.ok(record.endedAt);
 });
 
+test("records a Codex turn using the official hook fields", async () => {
+  process.env.AGENT_WORKLOG_DATA_DIR = await mkdtemp(path.join(os.tmpdir(), "worklog-codex-"));
+  await writeConfig({ language: "zh-CN" });
+
+  const startResponse = await recordStartCommand({
+    platform: "codex",
+    input: {
+      hook_event_name: "UserPromptSubmit",
+      session_id: "codex-session",
+      turn_id: "codex-turn",
+      cwd: "/tmp/codex-project",
+      prompt: "检查记录流程",
+      permission_mode: "default"
+    }
+  });
+  assert.equal(
+    startResponse.hookSpecificOutput.hookEventName,
+    "UserPromptSubmit"
+  );
+  assert.match(startResponse.hookSpecificOutput.additionalContext, /agent-worklog-summary/);
+
+  const stopResponse = await recordEndCommand({
+    platform: "codex",
+    input: {
+      hook_event_name: "Stop",
+      session_id: "codex-session",
+      turn_id: "codex-turn",
+      cwd: "/tmp/codex-project",
+      permission_mode: "default",
+      stop_hook_active: false,
+      last_assistant_message: "<!-- agent-worklog-summary: 已检查 Codex 记录流程 -->"
+    }
+  });
+  assert.deepEqual(stopResponse, { continue: true });
+
+  const [record] = await listRecords();
+  assert.equal(record.platform, "codex");
+  assert.equal(record.projectPath, "/tmp/codex-project");
+  assert.equal(record.summary, "已检查 Codex 记录流程");
+  assert.equal(record.status, "completed");
+});
+
 test("combines Cursor response and stop events without creating a session task", async () => {
   process.env.AGENT_WORKLOG_DATA_DIR = await mkdtemp(path.join(os.tmpdir(), "worklog-cursor-"));
   await writeConfig({ language: "ja-JP" });

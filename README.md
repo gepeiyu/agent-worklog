@@ -27,10 +27,23 @@ You can also run the installer without a prior global installation:
 npx @gepeiyu/agent-worklog install
 ```
 
-The wizard first asks for the worklog language (Simplified Chinese, Japanese, or English), then lets you select one or more platforms. It does not need to be run from a project directory. Non-interactive installation requires both the language and platform list:
+The installer does not need to be run from a project directory. Its interactive flow is:
+
+1. Select the worklog and default dashboard language: Simplified Chinese, Japanese, or English.
+2. Select one or more platforms: Claude Code, Codex CLI, and Cursor.
+3. Install user-level hooks and Skills, so the configuration applies to every local project.
+4. Print the installed files and resolved local data directory.
+5. Ask whether to start the dashboard immediately. The default answer is yes.
+
+When started from the installer, the dashboard opens in the browser and keeps the current terminal open until you press `Ctrl+C`. Stopping it does not disable worklog recording. After the first installation or a hook update, restart any currently running Claude Code, Codex CLI, and Cursor sessions so they reload their user-level hooks. Starting or stopping the dashboard itself does not require an agent restart.
+
+Codex also requires an explicit trust step after every new or changed command hook. Open `/hooks`, review `UserPromptSubmit` and `Stop`, and select **Trust all and continue**. Codex skips both hooks until they are trusted, so no Codex worklog records will be created before this step.
+
+Non-interactive installation requires both the language and platform list and does not start a long-running server by default. Add `--start-dashboard` when that behavior is intentional:
 
 ```bash
 agent-worklog install --language en --platforms claude,codex,cursor
+agent-worklog install --language en --platforms claude,codex,cursor --start-dashboard
 ```
 
 The installer stores the language in `config.json` under the local data directory, then generates hook summary instructions and global Skills for that language. Run the installer again to change it. Existing configuration is preserved, while previous `agent-worklog` hook entries are replaced so repeated installation does not create duplicates.
@@ -114,7 +127,9 @@ agent-worklog dashboard --port 5000
 agent-worklog dashboard --no-open
 ```
 
-The server only listens on `127.0.0.1`, `localhost`, or `::1`. It uses port `4789` by default and tries the next ten ports when that port is occupied. The dashboard displays one date at a time and defaults to the language selected during installation. You can switch between Simplified Chinese, Japanese, and English at any time. It also provides platform and project filters, project subtotals, and same-day point reallocation.
+The server only listens on `127.0.0.1`, `localhost`, or `::1`. It uses port `4789` by default and tries the next ten ports when that port is occupied. The dashboard displays one date at a time and defaults to the language selected during installation. You can switch between Simplified Chinese, Japanese, and English at any time. It also provides platform and project filters, project subtotals, and same-day point reallocation. Filters affect the visible records and subtotals only; the daily total-points field always represents and reallocates all completed records on the selected date. Use the CLI when a project-specific allocation scope is required.
+
+The dashboard does not need to stay running for hooks to record work. Start it from the installation prompt or run `agent-worklog dashboard` whenever you want to view the data.
 
 The browser remembers a manual language choice for the current installation configuration. If the installer is run again with a different language, the dashboard adopts the newly installed language. CLI weekly reports and date-range operations are unaffected by the dashboard's single-date view.
 

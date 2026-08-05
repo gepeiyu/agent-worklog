@@ -27,10 +27,23 @@ agent-worklog install
 npx @gepeiyu/agent-worklog install
 ```
 
-向导会先选择工作记录语言（简体中文、日语或英语），再选择要启用的平台。它支持同时选择 Claude Code、Codex CLI 和 Cursor，不需要进入某个项目目录。非交互环境必须同时指定语言：
+安装时不需要进入某个项目目录。交互式安装流程如下：
+
+1. 选择工作记录及仪表盘默认语言：简体中文、日语或英语。
+2. 选择一个或多个平台：Claude Code、Codex CLI、Cursor。
+3. 安装用户级 hooks 和 Skills，使配置覆盖本机上的所有项目。
+4. 打印已写入的配置文件及本地数据目录。
+5. 询问是否立即启动仪表盘，默认选择“是”。
+
+从安装向导启动仪表盘时会自动打开浏览器，并保持当前终端运行；按 `Ctrl+C` 可以停止仪表盘，但不会影响 hooks 继续记录工作。首次安装或 hooks 更新后，需要重启当前正在运行的 Claude Code、Codex CLI 和 Cursor 会话，让它们重新加载用户级 hooks。单独启动或停止仪表盘不需要重启这些工具。
+
+Codex 对每条新增或变更的命令 hook 还要求显式信任。打开 `/hooks`，审核 `UserPromptSubmit` 和 `Stop`，然后选择 **Trust all and continue**。完成信任之前 Codex 会跳过这两条 hook，因此不会产生 Codex 工作记录。
+
+非交互环境必须同时指定语言和平台，默认不会启动常驻服务；明确需要启动时可添加 `--start-dashboard`：
 
 ```bash
 agent-worklog install --language zh-CN --platforms claude,codex,cursor
+agent-worklog install --language zh-CN --platforms claude,codex,cursor --start-dashboard
 ```
 
 安装器会把语言写入本地数据目录的 `config.json`，并按该语言生成 hook 摘要指令和全局 Skill。重新运行安装向导可以修改语言。安装器会保留已有配置，删除旧的 `agent-worklog` hook 条目后写入当前版本，重复执行不会产生重复 hook。
@@ -41,7 +54,7 @@ agent-worklog install --language zh-CN --platforms claude,codex,cursor
 | Codex CLI | `~/.codex/hooks.json` | `~/.agents/skills/agent-worklog/SKILL.md` |
 | Cursor | `~/.cursor/hooks.json` | `~/.agents/skills/agent-worklog/SKILL.md` |
 
-安装器不会修改当前项目。它会保留用户配置中已有的 hooks，删除旧的 `agent-worklog` 条目后写入当前版本，因此重复执行不会产生重复 hook。三份平台 manifest 位于 `templates/manifests/`，用于后续制作独立平台插件；普通安装不依赖 manifest。
+安装器不会修改当前项目。三份平台 manifest 位于 `templates/manifests/`，用于后续制作独立平台插件；普通安装不依赖 manifest。
 
 用户级 hooks 覆盖本机 Claude Code、Codex CLI 和 Cursor 打开的所有项目。云端 agent、远程运行环境和其他操作系统账户不会读取这台机器的用户目录，需要在对应环境单独部署。
 
@@ -114,7 +127,9 @@ agent-worklog dashboard --port 5000
 agent-worklog dashboard --no-open
 ```
 
-服务仅允许监听 `127.0.0.1`、`localhost` 或 `::1`。默认使用端口 `4789`；端口被占用时会依次尝试后续十个端口。页面一次只查看一个日期，默认使用安装语言，也支持随时切换简体中文、日语和英语，并提供平台和项目筛选、项目小计，以及重新分摊当天点数。浏览器会记住当前安装配置下的手动语言选择；重新运行安装向导修改语言后，页面会采用新的安装语言。CLI 的周报和日期区间功能不受影响。
+服务仅允许监听 `127.0.0.1`、`localhost` 或 `::1`。默认使用端口 `4789`；端口被占用时会依次尝试后续十个端口。页面一次只查看一个日期，默认使用安装语言，也支持随时切换简体中文、日语和英语，并提供平台和项目筛选、项目小计，以及重新分摊当天点数。筛选只影响当前显示的记录和小计；“当日总点数”始终表示所选日期全部已完成记录的总点数，并对这些记录整体重新分摊。需要按项目范围分配时可使用 CLI。浏览器会记住当前安装配置下的手动语言选择；重新运行安装向导修改语言后，页面会采用新的安装语言。CLI 的周报和日期区间功能不受影响。
+
+仪表盘不需要一直运行，hooks 记录工作时也不依赖它。可以在安装完成时直接启动，也可以在需要查看数据时再运行 `agent-worklog dashboard`。
 
 ## 本地开发与完整演练
 

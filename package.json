@@ -1,6 +1,6 @@
 {
   "name": "@gepeiyu/agent-worklog",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local worklog, reporting, and time-based point allocation for AI coding agents",
   "type": "module",
   "license": "MIT",
