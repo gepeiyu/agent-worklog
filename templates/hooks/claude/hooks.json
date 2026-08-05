@@ -1,0 +1,37 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx --yes @gepeiyu/agent-worklog record-start --platform claude",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx --yes @gepeiyu/agent-worklog record-end --platform claude",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx --yes @gepeiyu/agent-worklog record-end --platform claude",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

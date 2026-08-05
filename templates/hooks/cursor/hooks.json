@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "npx --yes @gepeiyu/agent-worklog record-start --platform cursor"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "npx --yes @gepeiyu/agent-worklog record-start --platform cursor"
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "npx --yes @gepeiyu/agent-worklog record-end --platform cursor"
+      }
+    ],
+    "stop": [
+      {
+        "command": "npx --yes @gepeiyu/agent-worklog record-end --platform cursor"
+      }
+    ]
+  }
+}

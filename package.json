@@ -1,0 +1,35 @@
+{
+  "name": "@gepeiyu/agent-worklog",
+  "version": "0.1.0",
+  "description": "Local worklog, reporting, and time-based point allocation for AI coding agents",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "agent-worklog": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "templates/",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "node ./bin/cli.js",
+    "test": "node --test",
+    "pack:check": "npm pack --dry-run"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.5.2",
+    "commander": "^15.0.0",
+    "env-paths": "^4.0.0",
+    "open": "^11.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

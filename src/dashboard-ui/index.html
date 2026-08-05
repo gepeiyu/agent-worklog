@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>agent-worklog</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-block">
+        <p class="product-name">agent-worklog</p>
+        <p class="date-caption" id="range-caption" data-i18n="localWorklog">本地工作记录</p>
+      </div>
+      <div class="topbar-actions">
+        <label class="language-picker">
+          <span class="sr-only" data-i18n="language">语言</span>
+          <select id="language" data-i18n-aria-label="language">
+            <option value="zh-CN">简体中文</option>
+            <option value="ja-JP">日本語</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <div class="local-status"><span aria-hidden="true"></span>LOCAL</div>
+      </div>
+    </header>
+
+    <main>
+      <section class="filter-band" aria-label="记录筛选" data-i18n-aria-label="filterAria">
+        <form id="filter-form" class="filter-grid">
+          <label>
+            <span data-i18n="date">日期</span>
+            <input id="date" name="date" type="date" required>
+          </label>
+          <label>
+            <span data-i18n="platform">平台</span>
+            <select id="platform" name="platform">
+              <option value="" data-i18n="allPlatforms">全部平台</option>
+            </select>
+          </label>
+          <label class="project-filter">
+            <span data-i18n="project">项目</span>
+            <select id="project" name="project">
+              <option value="" data-i18n="allProjects">全部项目</option>
+            </select>
+          </label>
+          <button class="primary-button" type="submit" data-i18n="applyFilters">应用筛选</button>
+        </form>
+      </section>
+
+      <section class="metrics" aria-label="汇总统计" data-i18n-aria-label="metricsAria">
+        <div class="metric">
+          <span data-i18n="records">记录</span>
+          <strong id="record-count">0</strong>
+        </div>
+        <div class="metric">
+          <span data-i18n="totalDuration">总耗时</span>
+          <strong id="total-duration">0m</strong>
+        </div>
+        <div class="metric">
+          <span data-i18n="totalPoints">总点数</span>
+          <strong id="total-points">0.0</strong>
+        </div>
+        <form id="points-form" class="points-form">
+          <label for="point-total" data-i18n="dailyPoints">当日总点数</label>
+          <div class="point-controls">
+            <input id="point-total" name="total" type="number" min="0" step="0.5" required>
+            <button type="submit" data-i18n="reallocate">重新分摊</button>
+          </div>
+        </form>
+      </section>
+
+      <p id="status-message" class="status-message" role="status" aria-live="polite"></p>
+
+      <section class="project-section" aria-labelledby="project-title">
+        <div class="section-heading">
+          <h1 id="project-title" data-i18n="projectSubtotal">项目小计</h1>
+        </div>
+        <div class="table-wrap compact-table">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="project">项目</th>
+                <th data-i18n="turns">轮次</th>
+                <th data-i18n="duration">耗时</th>
+                <th data-i18n="points">点数</th>
+              </tr>
+            </thead>
+            <tbody id="project-rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="records-section" aria-labelledby="records-title">
+        <div class="section-heading">
+          <h2 id="records-title" data-i18n="workRecords">工作记录</h2>
+          <span id="data-file" class="data-file" title="JSONL 数据文件" data-i18n-aria-label="dataFileTitle"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="records-table">
+            <thead>
+              <tr>
+                <th data-i18n="timeRange">时间段</th>
+                <th data-i18n="platform">平台</th>
+                <th data-i18n="project">项目</th>
+                <th class="summary-column" data-i18n="summary">摘要</th>
+                <th data-i18n="duration">耗时</th>
+                <th data-i18n="points">点数</th>
+                <th data-i18n="status">状态</th>
+              </tr>
+            </thead>
+            <tbody id="record-rows"></tbody>
+          </table>
+        </div>
+        <div id="empty-state" class="empty-state" hidden data-i18n="emptyState">所选日期没有记录</div>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
