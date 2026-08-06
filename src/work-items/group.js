@@ -37,6 +37,14 @@ function createWorkItem(id, records) {
     .filter(Boolean)
     .sort();
   const lastTurn = turns.at(-1);
+  const completedTurnCount = turns.filter(isTimedTurn).length;
+  const unresolvedTurns = turns.filter((record) => !isTimedTurn(record));
+  const runningTurnCount = unresolvedTurns.filter(
+    (record) => record.status === "running"
+  ).length;
+  const interruptedTurnCount = unresolvedTurns.filter(
+    (record) => record.status === "interrupted"
+  ).length;
 
   return {
     id,
@@ -61,8 +69,16 @@ function createWorkItem(id, records) {
       : null,
     status: aggregateStatus(turns),
     turnCount: turns.length,
+    completedTurnCount,
+    runningTurnCount,
+    interruptedTurnCount,
+    incompleteTurnCount: unresolvedTurns.length - runningTurnCount - interruptedTurnCount,
     turns
   };
+}
+
+function isTimedTurn(record) {
+  return Boolean(record.endedAt) && record.durationSeconds != null;
 }
 
 function uniqueSummaries(records) {

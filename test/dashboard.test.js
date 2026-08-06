@@ -50,8 +50,14 @@ test("serves records and reallocates points through the local API", async (conte
   assert.match(pageHtml, /简体中文/);
   assert.match(pageHtml, /日本語/);
   assert.match(pageHtml, />English</);
-  assert.match(pageHtml, /项目 \/ 会话汇总/);
+  assert.match(pageHtml, /工作记录/);
   assert.match(pageHtml, /data-i18n="sessions"/);
+  assert.match(pageHtml, /data-i18n="completedTasks"/);
+  assert.doesNotMatch(pageHtml, /<th class="summary-column" data-i18n="summary">摘要<\/th>[\s\S]*<th data-i18n="duration">耗时<\/th>[\s\S]*<tbody id="project-rows">/);
+
+  const groupScriptResponse = await fetch(`${dashboard.url}/group.js`);
+  assert.equal(groupScriptResponse.status, 200);
+  assert.match(await groupScriptResponse.text(), /export function groupRecordsBySession/);
 
   const healthResponse = await fetch(`${dashboard.url}/api/health`);
   const health = await healthResponse.json();
@@ -67,6 +73,7 @@ test("serves records and reallocates points through the local API", async (conte
   assert.equal(recordsBody.records.length, 2);
   assert.equal(recordsBody.workItems.length, 2);
   assert.equal(recordsBody.workItems[0].turnCount, 1);
+  assert.equal(recordsBody.workItems[0].completedTurnCount, 1);
   assert.equal(recordsBody.stats.totalDurationSeconds, 7200);
   assert.equal(recordsBody.dailyStats.totalDurationSeconds, 7200);
   assert.equal(recordsBody.filters.date, record.date);

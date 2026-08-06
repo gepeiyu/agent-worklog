@@ -42,6 +42,10 @@ test("groups turns by date, platform, project, and session", () => {
   assert.equal(groups[1].turnCount, 2);
   assert.equal(groups[1].durationSeconds, 180);
   assert.equal(groups[1].points, 2);
+  assert.equal(groups[1].completedTurnCount, 2);
+  assert.equal(groups[1].runningTurnCount, 0);
+  assert.equal(groups[1].interruptedTurnCount, 0);
+  assert.equal(groups[1].incompleteTurnCount, 0);
   assert.equal(groups[1].summary, "Published the package");
   assert.deepEqual(groups[1].summaries, ["Prepared the release", "Published the package"]);
   assert.equal(groups[1].summaryCount, 2);
@@ -56,6 +60,21 @@ test("does not merge records that have no session ID", () => {
 
   assert.equal(groups.length, 2);
   assert.ok(groups.every((group) => group.turnCount === 1));
+});
+
+test("reports completed, running, interrupted, and other turn counts", () => {
+  const [group] = groupRecordsBySession([
+    record({ id: "completed" }),
+    record({ id: "running", endedAt: null, durationSeconds: null, status: "running" }),
+    record({ id: "interrupted", endedAt: null, durationSeconds: null, status: "interrupted" }),
+    record({ id: "other", endedAt: null, durationSeconds: null, status: "aborted" })
+  ]);
+
+  assert.equal(group.turnCount, 4);
+  assert.equal(group.completedTurnCount, 1);
+  assert.equal(group.runningTurnCount, 1);
+  assert.equal(group.interruptedTurnCount, 1);
+  assert.equal(group.incompleteTurnCount, 1);
 });
 
 test("uses the latest turn status after a session recovers", () => {
