@@ -30,9 +30,6 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           cache: npm
 
-      - name: Update npm for trusted publishing
-        run: npm install --global npm@11
-
       - name: Verify tag matches package version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
@@ -52,5 +49,16 @@ jobs:
       - name: Check package contents
         run: npm run pack:check
 
+      - name: Verify npm token is configured
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "Missing repository secret: NPM_TOKEN" >&2
+            exit 1
+          fi
+
       - name: Publish package
         run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

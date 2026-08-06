@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { runDashboard } from "../src/commands/dashboard.js";
+import { createRequire } from "node:module";
+import {
+  runDashboard,
+  runDashboardServiceCommand
+} from "../src/commands/dashboard.js";
 import { runInstall } from "../src/commands/install.js";
 import { runRecordEnd } from "../src/commands/record-end.js";
 import { runRecordStart } from "../src/commands/record-start.js";
@@ -9,11 +13,13 @@ import { runSetPoints } from "../src/commands/set-points.js";
 import { runSummary } from "../src/commands/summary.js";
 
 const program = new Command();
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json");
 
 program
   .name("agent-worklog")
   .description("Local worklog for AI coding agents")
-  .version("0.1.0");
+  .version(version);
 
 program
   .command("install")
@@ -48,11 +54,19 @@ addRangeOptions(
 
 program
   .command("dashboard")
-  .description("Start the local worklog dashboard")
+  .description("Manage the singleton local worklog dashboard")
+  .argument("[action]", "start, status, stop, or restart", "start")
   .option("--host <host>", "listen host", "127.0.0.1")
   .option("--port <port>", "listen port", parsePort, 4789)
   .option("--no-open", "do not open a browser")
-  .action(runDashboard);
+  .action((action, options) => runDashboard({ ...options, action }));
+
+program
+  .command("dashboard-serve", { hidden: true })
+  .requiredOption("--host <host>", "listen host")
+  .requiredOption("--port <port>", "listen port", parseServicePort)
+  .requiredOption("--token <token>", "dashboard instance token")
+  .action(runDashboardServiceCommand);
 
 program.parseAsync().catch((error) => {
   process.stderr.write(`agent-worklog: ${error.message}\n`);
@@ -73,6 +87,14 @@ function parsePort(value) {
   const port = Number(value);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("port must be an integer between 1 and 65535");
+  }
+  return port;
+}
+
+function parseServicePort(value) {
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error("service port must be an integer between 0 and 65535");
   }
   return port;
 }

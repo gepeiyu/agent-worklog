@@ -24,9 +24,9 @@ const DASHBOARD_PROMPTS = {
 };
 
 const DASHBOARD_START_MESSAGES = {
-  "zh-CN": "正在启动仪表盘，按 Ctrl+C 停止。",
-  "ja-JP": "ダッシュボードを起動しています。Ctrl+C で停止します。",
-  en: "Starting the dashboard. Press Ctrl+C to stop."
+  "zh-CN": "正在启动仪表盘。",
+  "ja-JP": "ダッシュボードを起動しています。",
+  en: "Starting the dashboard."
 };
 
 const CODEX_TRUST_MESSAGES = {
@@ -163,6 +163,7 @@ export async function runInstall(options) {
   if (shouldStartDashboard) {
     process.stdout.write(`${DASHBOARD_START_MESSAGES[result.language]}\n`);
     await runDashboard({
+      action: "start",
       host: "127.0.0.1",
       port: 4789,
       open: interactive

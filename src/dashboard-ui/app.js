@@ -14,19 +14,28 @@ const messages = {
     allProjects: "全部项目",
     applyFilters: "应用筛选",
     metricsAria: "汇总统计",
-    records: "记录",
+    records: "工作项",
     totalDuration: "总耗时",
     totalPoints: "总点数",
     dailyPoints: "当日总点数",
     reallocate: "重新分摊",
     projectSubtotal: "项目小计",
+    sessions: "会话",
     turns: "轮次",
     duration: "耗时",
     points: "点数",
-    workRecords: "工作记录",
+    workRecords: "项目 / 会话汇总",
     dataFileTitle: "JSONL 数据文件",
     timeRange: "时间段",
     summary: "摘要",
+    session: "会话 {session}",
+    noSession: "无会话 ID",
+    turnCount: "{count} 个轮次",
+    summaryCount: "{count} 条摘要",
+    moreSummaries: "另有 {count} 条，展开查看",
+    turnLabel: "轮次 {count}",
+    expandSession: "展开会话明细",
+    collapseSession: "收起会话明细",
     status: "状态",
     emptyState: "所选日期没有记录",
     missingSummary: "Agent 未提供摘要",
@@ -60,19 +69,28 @@ const messages = {
     allProjects: "すべてのプロジェクト",
     applyFilters: "フィルターを適用",
     metricsAria: "集計",
-    records: "記録",
+    records: "作業項目",
     totalDuration: "合計時間",
     totalPoints: "合計ポイント",
     dailyPoints: "当日の合計ポイント",
     reallocate: "再配分",
     projectSubtotal: "プロジェクト別小計",
+    sessions: "セッション",
     turns: "タスク数",
     duration: "所要時間",
     points: "ポイント",
-    workRecords: "作業記録",
+    workRecords: "プロジェクト / セッション集計",
     dataFileTitle: "JSONL データファイル",
     timeRange: "時間帯",
     summary: "概要",
+    session: "セッション {session}",
+    noSession: "セッション ID なし",
+    turnCount: "{count} ターン",
+    summaryCount: "概要 {count} 件",
+    moreSummaries: "ほか {count} 件、展開して表示",
+    turnLabel: "ターン {count}",
+    expandSession: "セッション詳細を展開",
+    collapseSession: "セッション詳細を閉じる",
     status: "ステータス",
     emptyState: "選択した日付の記録はありません",
     missingSummary: "Agent による概要なし",
@@ -106,19 +124,28 @@ const messages = {
     allProjects: "All projects",
     applyFilters: "Apply filters",
     metricsAria: "Summary metrics",
-    records: "Records",
+    records: "Work items",
     totalDuration: "Total duration",
     totalPoints: "Total points",
     dailyPoints: "Daily total points",
     reallocate: "Reallocate",
     projectSubtotal: "Project subtotals",
+    sessions: "Sessions",
     turns: "Tasks",
     duration: "Duration",
     points: "Points",
-    workRecords: "Work records",
+    workRecords: "Project / session summary",
     dataFileTitle: "JSONL data file",
     timeRange: "Time range",
     summary: "Summary",
+    session: "Session {session}",
+    noSession: "No session ID",
+    turnCount: "{count} turns",
+    summaryCount: "{count} summaries",
+    moreSummaries: "{count} more, expand to view",
+    turnLabel: "Turn {count}",
+    expandSession: "Expand session details",
+    collapseSession: "Collapse session details",
     status: "Status",
     emptyState: "No records for the selected date",
     missingSummary: "No summary provided by the agent",
@@ -167,7 +194,8 @@ const state = {
   language: "zh-CN",
   metadata: null,
   result: null,
-  status: null
+  status: null,
+  expandedWorkItems: new Set()
 };
 
 elements.language.addEventListener("change", () => {
@@ -267,8 +295,8 @@ function refreshSelectLabels() {
 
 function render(result) {
   state.result = result;
-  const { filters, dataFile, records, stats, dailyStats = stats } = result;
-  elements.recordCount.textContent = String(stats.completedCount);
+  const { filters, dataFile, records, workItems = legacyWorkItems(records), stats, dailyStats = stats } = result;
+  elements.recordCount.textContent = String(workItems.length);
   elements.totalDuration.textContent = formatDuration(stats.totalDurationSeconds);
   elements.totalPoints.textContent = Number(stats.totalPoints).toFixed(1);
   if (document.activeElement !== elements.pointTotal) {
@@ -279,44 +307,205 @@ function render(result) {
   elements.dataFile.title = dataFile;
 
   elements.projectRows.replaceChildren(
-    ...stats.byProject.map((project) => row([
-      projectCell(project.projectPath),
-      String(project.recordCount),
-      formatDuration(project.durationSeconds),
-      Number(project.points).toFixed(1)
-    ]))
+    ...stats.byProject.map((project) => {
+      const projectWorkItems = workItems.filter(
+        (workItem) => workItem.projectPath === project.projectPath
+      );
+      return projectRow(project, projectWorkItems);
+    })
   );
 
-  elements.recordRows.replaceChildren(...records.map(recordRow));
-  const isEmpty = records.length === 0;
+  elements.recordRows.replaceChildren(...workItems.flatMap(workItemRows));
+  const isEmpty = workItems.length === 0;
   elements.emptyState.hidden = !isEmpty;
   elements.tableWrap.hidden = isEmpty;
 }
 
-function recordRow(record) {
+function workItemRows(workItem) {
+  const expanded = state.expandedWorkItems.has(workItem.id);
+  const rows = [workItemRow(workItem, expanded)];
+  if (expanded) rows.push(...workItem.turns.map((turn, index) => turnRow(turn, index)));
+  return rows;
+}
+
+function workItemRow(workItem, expanded) {
   const tr = document.createElement("tr");
+  tr.className = "work-item-row";
   tr.append(
-    cell(timeRange(record)),
-    badgeCell(record.platform, "platform-badge"),
-    projectCell(record.projectPath),
-    cell(record.summary || t("missingSummary"), "summary-text"),
-    cell(record.durationSeconds == null ? "-" : formatDuration(record.durationSeconds), "numeric"),
-    cell(record.points == null ? "-" : Number(record.points).toFixed(1), "numeric"),
+    workItemTimeCell(workItem, expanded),
+    badgeCell(workItem.platform, "platform-badge", "platform"),
+    projectCell(workItem.projectPath),
+    workItemSummaryCell(workItem),
+    cell(
+      workItem.durationSeconds == null ? "-" : formatDuration(workItem.durationSeconds),
+      "numeric",
+      "duration"
+    ),
+    cell(
+      workItem.points == null ? "-" : Number(workItem.points).toFixed(1),
+      "numeric",
+      "points"
+    ),
+    statusCell(workItem.status)
+  );
+  return tr;
+}
+
+function workItemTimeCell(workItem, expanded) {
+  const td = document.createElement("td");
+  td.dataset.label = t("timeRange");
+  const wrapper = document.createElement("div");
+  wrapper.className = "work-item-time";
+  const button = document.createElement("button");
+  button.className = "disclosure-button";
+  button.type = "button";
+  const icon = document.createElement("span");
+  icon.className = "disclosure-icon";
+  icon.textContent = expanded ? "\u25be" : "\u25b8";
+  const count = document.createElement("span");
+  count.textContent = String(workItem.turnCount);
+  button.append(icon, count);
+  button.title = t(expanded ? "collapseSession" : "expandSession");
+  button.setAttribute("aria-label", button.title);
+  button.setAttribute("aria-expanded", String(expanded));
+  button.addEventListener("click", () => {
+    if (expanded) state.expandedWorkItems.delete(workItem.id);
+    else state.expandedWorkItems.add(workItem.id);
+    render(state.result);
+  });
+  const range = document.createElement("span");
+  range.textContent = timeRange(workItem);
+  wrapper.append(button, range);
+  td.append(wrapper);
+  return td;
+}
+
+function workItemSummaryCell(workItem) {
+  const td = document.createElement("td");
+  td.className = "summary-text";
+  td.dataset.label = t("summary");
+  const summaries = workItem.summaries ?? (workItem.summary ? [workItem.summary] : []);
+  if (summaries.length === 0) {
+    const missing = document.createElement("div");
+    missing.textContent = t("missingSummary");
+    td.append(missing);
+  } else {
+    const list = document.createElement("ul");
+    list.className = "summary-list";
+    for (const summaryText of summaries.slice(-3).reverse()) {
+      const item = document.createElement("li");
+      item.textContent = summaryText;
+      list.append(item);
+    }
+    td.append(list);
+    if (summaries.length > 3) {
+      const more = document.createElement("div");
+      more.className = "secondary more-summaries";
+      more.textContent = t("moreSummaries", { count: summaries.length - 3 });
+      td.append(more);
+    }
+  }
+  const metadata = document.createElement("div");
+  metadata.className = "secondary session-meta";
+  const session = workItem.sessionId
+    ? t("session", { session: shortId(workItem.sessionId) })
+    : t("noSession");
+  metadata.textContent = [
+    t("turnCount", { count: workItem.turnCount }),
+    t("summaryCount", { count: summaries.length }),
+    session
+  ].join(" \u00b7 ");
+  metadata.title = workItem.sessionId || t("noSession");
+  td.append(metadata);
+  return td;
+}
+
+function turnRow(record, index) {
+  const tr = document.createElement("tr");
+  tr.className = "turn-row";
+  tr.append(
+    cell(timeRange(record), "turn-time", "timeRange"),
+    badgeCell(record.platform, "platform-badge", "platform"),
+    turnCell(record, index),
+    cell(record.summary || t("missingSummary"), "summary-text", "summary"),
+    cell(
+      record.durationSeconds == null ? "-" : formatDuration(record.durationSeconds),
+      "numeric",
+      "duration"
+    ),
+    cell(
+      record.points == null ? "-" : Number(record.points).toFixed(1),
+      "numeric",
+      "points"
+    ),
     statusCell(record.status)
   );
   return tr;
 }
 
-function row(values) {
-  const tr = document.createElement("tr");
-  for (const value of values) {
-    tr.append(value instanceof Node ? value : cell(value, "numeric"));
+function turnCell(record, index) {
+  const td = document.createElement("td");
+  td.dataset.label = t("turns");
+  const label = document.createElement("div");
+  label.textContent = t("turnLabel", { count: index + 1 });
+  const id = document.createElement("div");
+  id.className = "secondary";
+  id.textContent = record.turnId ? shortId(record.turnId) : "-";
+  id.title = record.turnId || "";
+  td.append(label, id);
+  return td;
+}
+
+function projectSummaryCell(workItems) {
+  const td = document.createElement("td");
+  td.className = "project-summary-cell";
+  td.dataset.label = t("summary");
+  for (const workItem of workItems) {
+    const item = document.createElement("div");
+    item.className = "project-summary-item";
+    const label = document.createElement("span");
+    label.className = "project-summary-label";
+    label.textContent = `${workItem.platform} \u00b7 ${shortId(workItem.sessionId || "-")}`;
+    const summary = document.createElement("span");
+    summary.textContent = workItem.summary || t("missingSummary");
+    item.append(label, summary);
+    td.append(item);
   }
+  return td;
+}
+
+function projectRow(project, workItems) {
+  const tr = document.createElement("tr");
+  tr.className = "project-row";
+  tr.append(
+    projectCell(project.projectPath),
+    cell(String(workItems.length), "numeric", "sessions"),
+    cell(String(project.recordCount), "numeric", "turns"),
+    projectSummaryCell(workItems),
+    cell(formatDuration(project.durationSeconds), "numeric", "duration"),
+    cell(Number(project.points).toFixed(1), "numeric", "points")
+  );
   return tr;
+}
+
+function legacyWorkItems(records) {
+  return records.map((record) => ({
+    ...record,
+    id: `record:${record.id}`,
+    turnCount: 1,
+    summaries: record.summary ? [record.summary] : [],
+    summaryCount: record.summary ? 1 : 0,
+    turns: [record]
+  }));
+}
+
+function shortId(value) {
+  return value.length > 8 ? `${value.slice(0, 8)}\u2026` : value;
 }
 
 function projectCell(projectPath) {
   const td = document.createElement("td");
+  td.dataset.label = t("project");
   const name = document.createElement("div");
   name.textContent = projectName(projectPath);
   const fullPath = document.createElement("div");
@@ -326,8 +515,9 @@ function projectCell(projectPath) {
   return td;
 }
 
-function badgeCell(value, className) {
+function badgeCell(value, className, labelKey = null) {
   const td = document.createElement("td");
+  if (labelKey) td.dataset.label = t(labelKey);
   const badge = document.createElement("span");
   badge.className = className;
   badge.textContent = value;
@@ -342,12 +532,13 @@ function statusCell(status) {
       ? "status-badge error"
       : "status-badge warning";
   const key = `status.${status}`;
-  return badgeCell(messages[state.language][key] ? t(key) : status, className);
+  return badgeCell(messages[state.language][key] ? t(key) : status, className, "status");
 }
 
-function cell(value, className = "") {
+function cell(value, className = "", labelKey = null) {
   const td = document.createElement("td");
   td.className = className;
+  if (labelKey) td.dataset.label = t(labelKey);
   td.textContent = value;
   return td;
 }
@@ -375,7 +566,7 @@ function option(value, label) {
 
 function timeRange(record) {
   const start = new Date(record.startedAt);
-  return `${record.date} ${clock(start)}-${record.endedAt ? clock(new Date(record.endedAt)) : "--:--"}`;
+  return `${clock(start)}-${record.endedAt ? clock(new Date(record.endedAt)) : "\u2026"}`;
 }
 
 function clock(date) {

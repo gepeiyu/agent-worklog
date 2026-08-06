@@ -35,11 +35,11 @@ The installer does not need to be run from a project directory. Its interactive 
 4. Print the installed files and resolved local data directory.
 5. Ask whether to start the dashboard immediately. The default answer is yes.
 
-When started from the installer, the dashboard opens in the browser and keeps the current terminal open until you press `Ctrl+C`. Stopping it does not disable worklog recording. After the first installation or a hook update, restart any currently running Claude Code, Codex CLI, and Cursor sessions so they reload their user-level hooks. Starting or stopping the dashboard itself does not require an agent restart.
+When started from the installer, the dashboard runs as a single background service and the installer returns to the terminal after opening it in the browser. Stopping the dashboard does not disable worklog recording. After the first installation or a hook update, restart any currently running Claude Code, Codex CLI, and Cursor sessions so they reload their user-level hooks. Starting or stopping the dashboard itself does not require an agent restart.
 
 Codex also requires an explicit trust step after every new or changed command hook. Open `/hooks`, review `UserPromptSubmit` and `Stop`, and select **Trust all and continue**. Codex skips both hooks until they are trusted, so no Codex worklog records will be created before this step.
 
-Non-interactive installation requires both the language and platform list and does not start a long-running server by default. Add `--start-dashboard` when that behavior is intentional:
+Non-interactive installation requires both the language and platform list and does not start the background dashboard by default. Add `--start-dashboard` when that behavior is intentional:
 
 ```bash
 agent-worklog install --language en --platforms claude,codex,cursor
@@ -123,13 +123,19 @@ Points use increments of 0.5, and the total must also be a multiple of 0.5. Allo
 
 ```bash
 agent-worklog dashboard
-agent-worklog dashboard --port 5000
-agent-worklog dashboard --no-open
+agent-worklog dashboard start
+agent-worklog dashboard status
+agent-worklog dashboard stop
+agent-worklog dashboard restart
+agent-worklog dashboard restart --port 5000
+agent-worklog dashboard start --no-open
 ```
 
-The server only listens on `127.0.0.1`, `localhost`, or `::1`. It uses port `4789` by default and tries the next ten ports when that port is occupied. The dashboard displays one date at a time and defaults to the language selected during installation. You can switch between Simplified Chinese, Japanese, and English at any time. It also provides platform and project filters, project subtotals, and same-day point reallocation. Filters affect the visible records and subtotals only; the daily total-points field always represents and reallocates all completed records on the selected date. Use the CLI when a project-specific allocation scope is required.
+`agent-worklog dashboard` is an alias for `agent-worklog dashboard start`. Start checks for an existing managed instance first: if one is running, it prints and opens that instance's URL instead of creating a duplicate; otherwise it starts the dashboard in the background and returns the URL. Use `status` to inspect the URL and process ID, `stop` to stop it, and `restart` to apply a new package version or host/port option. Lifecycle state is stored in `dashboard.json` under the local data directory. The server only listens on `127.0.0.1`, `localhost`, or `::1`. It uses port `4789` by default and tries the next ten ports when that port is occupied.
 
-The dashboard does not need to stay running for hooks to record work. Start it from the installation prompt or run `agent-worklog dashboard` whenever you want to view the data.
+The dashboard displays one date at a time and defaults to the language selected during installation. You can switch between Simplified Chinese, Japanese, and English at any time. It also provides platform and project filters, project subtotals, and same-day point reallocation. Filters affect the visible records and subtotals only; the daily total-points field always represents and reallocates all completed records on the selected date. Use the CLI when a project-specific allocation scope is required.
+
+The dashboard does not need to stay running for hooks to record work. Start it from the installation prompt or run `agent-worklog dashboard` whenever you want to view the data. When upgrading from version `0.1.1` or earlier, stop any dashboard that was left running in an old foreground terminal once before starting the new managed service; those releases did not write lifecycle state and cannot be stopped reliably by the new command.
 
 The browser remembers a manual language choice for the current installation configuration. If the installer is run again with a different language, the dashboard adopts the newly installed language. CLI weekly reports and date-range operations are unaffected by the dashboard's single-date view.
 
@@ -168,14 +174,7 @@ agent-worklog dashboard
 
 For local-only use, `npm link` provides the same global-command behavior as an installed package.
 
-Tag pushes are published automatically by [`.github/workflows/publish.yml`](.github/workflows/publish.yml). The workflow uses npm Trusted Publishing through GitHub Actions OIDC, so it does not require an `NPM_TOKEN` repository secret.
-
-Before the first automated release, open the package settings on npm and add a GitHub Actions trusted publisher with these exact values:
-
-- Organization or user: `gepeiyu`
-- Repository: `agent-worklog`
-- Workflow filename: `publish.yml`
-- Environment: leave empty
+Tag pushes are published automatically by [`.github/workflows/publish.yml`](.github/workflows/publish.yml). Following the release setup used by `gepeiyu/smart`, the workflow reads an npm access token from the `NPM_TOKEN` repository secret and passes it to npm as `NODE_AUTH_TOKEN`. Add `NPM_TOKEN` under the `agent-worklog` repository's **Settings > Secrets and variables > Actions** before running a release. Secrets configured only on another repository, including `smart`, are not available here.
 
 Create a release by updating the package version and pushing the resulting commit and tag:
 
@@ -184,6 +183,6 @@ npm version patch
 git push origin main --follow-tags
 ```
 
-The tag must exactly match `v` followed by the version in `package.json`, for example `v0.2.0`. The workflow rejects mismatched tags, runs the test suite and package-content check, then publishes the public package with provenance. Do not create a `v0.1.0` tag because that version has already been published.
+The tag must exactly match `v` followed by the version in `package.json`, for example `v0.2.0`. The workflow rejects mismatched tags, verifies that `NPM_TOKEN` is configured, runs the test suite and package-content check, then publishes the public package with provenance. Do not create a `v0.1.0` tag because that version has already been published.
 
 For an emergency manual release, `package.json` already contains `publishConfig.access: "public"`; run `npm publish --access public` from an authenticated local checkout.

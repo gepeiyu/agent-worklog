@@ -10,6 +10,7 @@ import {
   setPointsForScope
 } from "../store/db.js";
 import { resolveDateRange } from "../utils.js";
+import { groupRecordsBySession } from "../work-items/group.js";
 
 const UI_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../dashboard-ui");
 const STATIC_FILES = new Map([
@@ -19,14 +20,18 @@ const STATIC_FILES = new Map([
   ["/styles.css", ["styles.css", "text/css; charset=utf-8"]]
 ]);
 
-export async function startDashboardServer({ host = "127.0.0.1", port = 4789 } = {}) {
+export async function startDashboardServer({
+  host = "127.0.0.1",
+  port = 4789,
+  instance = null
+} = {}) {
   if (!isLoopbackHost(host)) {
     throw new Error("Dashboard host must be a loopback address");
   }
 
   const server = createServer(async (request, response) => {
     try {
-      await handleRequest(request, response);
+      await handleRequest(request, response, instance);
     } catch (error) {
       const statusCode = error.statusCode ?? 500;
       sendJson(response, statusCode, { error: error.message });
@@ -44,12 +49,22 @@ export async function startDashboardServer({ host = "127.0.0.1", port = 4789 } =
   };
 }
 
-async function handleRequest(request, response) {
+async function handleRequest(request, response, instance) {
   if (!isAllowedHostHeader(request.headers.host)) {
     sendJson(response, 403, { error: "Invalid dashboard host" });
     return;
   }
   const url = new URL(request.url, "http://127.0.0.1");
+  if (request.method === "GET" && url.pathname === "/api/health") {
+    sendJson(response, 200, {
+      service: "agent-worklog-dashboard",
+      pid: process.pid,
+      token: instance?.token ?? null,
+      version: instance?.version ?? null
+    });
+    return;
+  }
+
   if (request.method === "GET" && url.pathname === "/api/meta") {
     sendJson(response, 200, await getMetadata());
     return;
@@ -66,6 +81,7 @@ async function handleRequest(request, response) {
       filters,
       dataFile: getDailyEventsFile(filters.date),
       records,
+      workItems: groupRecordsBySession(records),
       stats: getRecordStats(records),
       dailyStats: getRecordStats(dailyRecords)
     });
@@ -106,6 +122,7 @@ async function handleRequest(request, response) {
       filters,
       dataFile: getDailyEventsFile(filters.date),
       records,
+      workItems: groupRecordsBySession(records),
       stats: getRecordStats(records),
       dailyStats: getRecordStats(dailyRecords)
     });

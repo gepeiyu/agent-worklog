@@ -35,11 +35,11 @@ npx @gepeiyu/agent-worklog install
 4. 打印已写入的配置文件及本地数据目录。
 5. 询问是否立即启动仪表盘，默认选择“是”。
 
-从安装向导启动仪表盘时会自动打开浏览器，并保持当前终端运行；按 `Ctrl+C` 可以停止仪表盘，但不会影响 hooks 继续记录工作。首次安装或 hooks 更新后，需要重启当前正在运行的 Claude Code、Codex CLI 和 Cursor 会话，让它们重新加载用户级 hooks。单独启动或停止仪表盘不需要重启这些工具。
+从安装向导启动仪表盘时会自动打开浏览器。仪表盘作为单实例后台服务运行，启动后安装向导会立即返回终端；停止仪表盘不会影响 hooks 继续记录工作。首次安装或 hooks 更新后，需要重启当前正在运行的 Claude Code、Codex CLI 和 Cursor 会话，让它们重新加载用户级 hooks。单独启动或停止仪表盘不需要重启这些工具。
 
 Codex 对每条新增或变更的命令 hook 还要求显式信任。打开 `/hooks`，审核 `UserPromptSubmit` 和 `Stop`，然后选择 **Trust all and continue**。完成信任之前 Codex 会跳过这两条 hook，因此不会产生 Codex 工作记录。
 
-非交互环境必须同时指定语言和平台，默认不会启动常驻服务；明确需要启动时可添加 `--start-dashboard`：
+非交互环境必须同时指定语言和平台，默认不会启动后台仪表盘；明确需要启动时可添加 `--start-dashboard`：
 
 ```bash
 agent-worklog install --language zh-CN --platforms claude,codex,cursor
@@ -123,13 +123,19 @@ agent-worklog set-points --date 2026-08-04 --total 8 --project "$PWD"
 
 ```bash
 agent-worklog dashboard
-agent-worklog dashboard --port 5000
-agent-worklog dashboard --no-open
+agent-worklog dashboard start
+agent-worklog dashboard status
+agent-worklog dashboard stop
+agent-worklog dashboard restart
+agent-worklog dashboard restart --port 5000
+agent-worklog dashboard start --no-open
 ```
 
-服务仅允许监听 `127.0.0.1`、`localhost` 或 `::1`。默认使用端口 `4789`；端口被占用时会依次尝试后续十个端口。页面一次只查看一个日期，默认使用安装语言，也支持随时切换简体中文、日语和英语，并提供平台和项目筛选、项目小计，以及重新分摊当天点数。筛选只影响当前显示的记录和小计；“当日总点数”始终表示所选日期全部已完成记录的总点数，并对这些记录整体重新分摊。需要按项目范围分配时可使用 CLI。浏览器会记住当前安装配置下的手动语言选择；重新运行安装向导修改语言后，页面会采用新的安装语言。CLI 的周报和日期区间功能不受影响。
+`agent-worklog dashboard` 等同于 `agent-worklog dashboard start`。启动时会先检查已有的受管实例：如果服务已经运行，只输出并打开现有地址，不会重复启动；如果未运行，则在后台启动并返回访问地址。`status` 用于查看地址和进程 ID，`stop` 用于停止服务，`restart` 用于应用新版本或新的主机、端口参数。服务状态保存在本地数据目录下的 `dashboard.json`。服务仅允许监听 `127.0.0.1`、`localhost` 或 `::1`，默认使用端口 `4789`；端口被占用时会依次尝试后续十个端口。
 
-仪表盘不需要一直运行，hooks 记录工作时也不依赖它。可以在安装完成时直接启动，也可以在需要查看数据时再运行 `agent-worklog dashboard`。
+页面一次只查看一个日期，默认使用安装语言，也支持随时切换简体中文、日语和英语，并提供平台和项目筛选、项目小计，以及重新分摊当天点数。筛选只影响当前显示的记录和小计；“当日总点数”始终表示所选日期全部已完成记录的总点数，并对这些记录整体重新分摊。需要按项目范围分配时可使用 CLI。浏览器会记住当前安装配置下的手动语言选择；重新运行安装向导修改语言后，页面会采用新的安装语言。CLI 的周报和日期区间功能不受影响。
+
+仪表盘不需要一直运行，hooks 记录工作时也不依赖它。可以在安装完成时直接启动，也可以在需要查看数据时再运行 `agent-worklog dashboard`。从 `0.1.1` 或更早版本升级时，需要先把旧终端中仍在运行的仪表盘手动停止一次，再启动新的受管服务；旧版本没有写入服务状态，新命令无法可靠识别并停止旧进程。
 
 ## 本地开发与完整演练
 
@@ -166,14 +172,7 @@ agent-worklog dashboard
 
 只在本机使用时，`npm link` 的效果与全局发布后安装相同。
 
-推送 tag 后，[`.github/workflows/publish.yml`](.github/workflows/publish.yml) 会自动发布。工作流通过 GitHub Actions OIDC 使用 npm Trusted Publishing，不需要在 GitHub 仓库中保存 `NPM_TOKEN`。
-
-首次自动发布前，需要在 npm 的包设置中添加 GitHub Actions trusted publisher，配置值必须为：
-
-- Organization or user：`gepeiyu`
-- Repository：`agent-worklog`
-- Workflow filename：`publish.yml`
-- Environment：留空
+推送 tag 后，[`.github/workflows/publish.yml`](.github/workflows/publish.yml) 会自动发布。参考 `gepeiyu/smart` 的发布方式，工作流从当前仓库的 `NPM_TOKEN` Secret 读取 npm access token，并通过 `NODE_AUTH_TOKEN` 传给 npm。发布前需要在 `agent-worklog` 仓库的 **Settings > Secrets and variables > Actions** 中添加 `NPM_TOKEN`。仅配置在其他仓库（包括 `smart`）中的 Secret 不会自动共享到这里。
 
 发布新版本时，更新版本号并推送对应提交和 tag：
 
@@ -182,6 +181,6 @@ npm version patch
 git push origin main --follow-tags
 ```
 
-tag 必须严格等于 `v` 加 `package.json` 中的版本号，例如 `v0.2.0`。工作流会拒绝版本不匹配的 tag，运行测试和发布包检查，然后附带 provenance 公开发布。`0.1.0` 已经发布，不要再创建 `v0.1.0` tag。
+tag 必须严格等于 `v` 加 `package.json` 中的版本号，例如 `v0.2.0`。工作流会拒绝版本不匹配的 tag，检查 `NPM_TOKEN` 是否已配置，运行测试和发布包检查，然后附带 provenance 公开发布。`0.1.0` 已经发布，不要再创建 `v0.1.0` tag。
 
 需要紧急手动发布时，`package.json` 已包含 `publishConfig.access: "public"`；在本地完成 npm 登录后运行 `npm publish --access public`。

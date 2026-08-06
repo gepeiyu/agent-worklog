@@ -122,3 +122,57 @@ test("does not invent a summary when the agent omits the marker", () => {
     "修复了 空格问题"
   );
 });
+
+test("keeps identical turn IDs isolated by session", async () => {
+  process.env.AGENT_WORKLOG_DATA_DIR = await mkdtemp(path.join(os.tmpdir(), "agent-worklog-session-"));
+  const common = {
+    platform: "codex",
+    projectPath: "/tmp/session-project",
+    turnId: "shared-turn",
+    startedAt: "2026-08-05T01:00:00.000Z"
+  };
+
+  const first = await startRecord({ ...common, sessionId: "session-a" });
+  const second = await startRecord({
+    ...common,
+    sessionId: "session-b",
+    startedAt: "2026-08-05T02:00:00.000Z"
+  });
+  assert.notEqual(first.id, second.id);
+
+  await finishRecord({
+    platform: "codex",
+    projectPath: common.projectPath,
+    sessionId: "session-a",
+    turnId: common.turnId,
+    endedAt: "2026-08-05T01:01:00.000Z",
+    responseText: "<!-- agent-worklog-summary: 完成会话 A -->"
+  });
+
+  const records = await listRecords();
+  assert.equal(records.find((record) => record.sessionId === "session-a").status, "completed");
+  assert.equal(records.find((record) => record.sessionId === "session-b").status, "running");
+});
+
+test("does not fall back to another turn when an explicit turn ID is unknown", async () => {
+  process.env.AGENT_WORKLOG_DATA_DIR = await mkdtemp(path.join(os.tmpdir(), "agent-worklog-turn-"));
+  await startRecord({
+    platform: "cursor",
+    projectPath: "/tmp/turn-project",
+    sessionId: "session-a",
+    turnId: "known-turn",
+    startedAt: "2026-08-05T01:00:00.000Z"
+  });
+
+  const result = await finishRecord({
+    platform: "cursor",
+    projectPath: "/tmp/turn-project",
+    sessionId: "session-a",
+    turnId: "unknown-turn",
+    endedAt: "2026-08-05T01:01:00.000Z",
+    responseText: "<!-- agent-worklog-summary: 不应关联 -->"
+  });
+
+  assert.equal(result, null);
+  assert.equal((await listRecords())[0].status, "running");
+});

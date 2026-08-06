@@ -50,12 +50,23 @@ test("serves records and reallocates points through the local API", async (conte
   assert.match(pageHtml, /简体中文/);
   assert.match(pageHtml, /日本語/);
   assert.match(pageHtml, />English</);
+  assert.match(pageHtml, /项目 \/ 会话汇总/);
+  assert.match(pageHtml, /data-i18n="sessions"/);
+
+  const healthResponse = await fetch(`${dashboard.url}/api/health`);
+  const health = await healthResponse.json();
+  assert.equal(healthResponse.status, 200);
+  assert.equal(health.service, "agent-worklog-dashboard");
+  assert.equal(health.pid, process.pid);
+  assert.equal(health.token, null);
 
   const recordsResponse = await fetch(
     `${dashboard.url}/api/records?date=${record.date}`
   );
   const recordsBody = await recordsResponse.json();
   assert.equal(recordsBody.records.length, 2);
+  assert.equal(recordsBody.workItems.length, 2);
+  assert.equal(recordsBody.workItems[0].turnCount, 1);
   assert.equal(recordsBody.stats.totalDurationSeconds, 7200);
   assert.equal(recordsBody.dailyStats.totalDurationSeconds, 7200);
   assert.equal(recordsBody.filters.date, record.date);
@@ -66,6 +77,7 @@ test("serves records and reallocates points through the local API", async (conte
   );
   const filteredBody = await filteredResponse.json();
   assert.equal(filteredBody.records.length, 1);
+  assert.equal(filteredBody.workItems.length, 1);
   assert.equal(filteredBody.stats.totalDurationSeconds, 3600);
   assert.equal(filteredBody.dailyStats.totalDurationSeconds, 7200);
 
@@ -87,6 +99,7 @@ test("serves records and reallocates points through the local API", async (conte
   assert.equal(pointsResponse.status, 200);
   assert.equal(pointsBody.allocation.recordCount, 2);
   assert.equal(pointsBody.records.length, 1);
+  assert.equal(pointsBody.workItems.length, 1);
   assert.equal(pointsBody.records[0].points, 4);
   assert.equal(pointsBody.stats.totalPoints, 4);
   assert.equal(pointsBody.dailyStats.totalPoints, 8);

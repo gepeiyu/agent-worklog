@@ -31,7 +31,9 @@ export function getDataPaths() {
   return {
     dataDirectory,
     configFile: path.join(dataDirectory, "config.json"),
-    lockFile: path.join(dataDirectory, "events.lock")
+    lockFile: path.join(dataDirectory, "events.lock"),
+    dashboardStateFile: path.join(dataDirectory, "dashboard.json"),
+    dashboardLockFile: path.join(dataDirectory, "dashboard.lock")
   };
 }
 
@@ -111,14 +113,16 @@ export async function getMetadata() {
 export async function startRecord(input) {
   return withStoreLock(async (paths) => {
     const state = await loadState(paths);
-    const exact = findTurnRecord(state.records, input);
+    const projectPath = path.resolve(input.projectPath);
+    const normalizedInput = { ...input, projectPath };
+    const exact = findTurnRecord(state.records, normalizedInput);
     if (exact) return toPublicRecord(exact);
 
     const stale = [...state.records.values()].filter(
       (record) =>
         record.status === "running" &&
         record.platform === input.platform &&
-        record.sessionId === input.sessionId
+        sameSessionOrProject(record, normalizedInput)
     );
     const eventsByDate = new Map();
     for (const record of stale) {
@@ -133,7 +137,7 @@ export async function startRecord(input) {
       id: randomUUID(),
       platform: input.platform,
       language: validateLanguage(input.language ?? DEFAULT_LANGUAGE),
-      projectPath: path.resolve(input.projectPath),
+      projectPath,
       sessionId: input.sessionId ?? null,
       turnId: input.turnId ?? null,
       startedAt,
@@ -441,7 +445,10 @@ async function acquireLock(lockFile) {
 function findTurnRecord(records, input) {
   if (!input.turnId) return null;
   return [...records.values()].find(
-    (record) => record.platform === input.platform && record.turnId === input.turnId
+    (record) =>
+      record.platform === input.platform &&
+      record.turnId === input.turnId &&
+      (!input.sessionId || record.sessionId === input.sessionId)
   ) ?? null;
 }
 
@@ -450,12 +457,23 @@ function findRunningRecord(records, input) {
     (record) => record.status === "running" && record.platform === input.platform
   );
   if (input.turnId) {
-    const exact = running.find((record) => record.turnId === input.turnId);
-    if (exact) return exact;
+    return running.find(
+      (record) =>
+        record.turnId === input.turnId &&
+        (!input.sessionId || record.sessionId === input.sessionId)
+    ) ?? null;
   }
-  return running
-    .filter((record) => !input.sessionId || record.sessionId === input.sessionId)
+
+  const candidates = input.sessionId
+    ? running.filter((record) => record.sessionId === input.sessionId)
+    : running.filter((record) => record.projectPath === path.resolve(input.projectPath));
+  return candidates
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] ?? null;
+}
+
+function sameSessionOrProject(record, input) {
+  if (input.sessionId) return record.sessionId === input.sessionId;
+  return !record.sessionId && record.projectPath === input.projectPath;
 }
 
 function matchesFilters(record, filters) {
