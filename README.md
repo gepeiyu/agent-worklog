@@ -6,6 +6,10 @@
 
 The tool never signs in to, calls, or submits data to a company system. All records, summaries, and exports stay on the local machine, and final submission always remains a manual action.
 
+## Dashboard
+
+![agent-worklog dashboard with project subtotals and expanded turn details](docs/assets/dashboard-en.png)
+
 ## Requirements
 
 - Node.js 22.12 or later
@@ -169,22 +173,3 @@ agent-worklog dashboard
 - Codex records normal turns through `Stop`; a process crash or force-quit has no reliable per-turn completion event.
 - The local Cursor Agent uses `sessionStart` to inject the summary protocol and combines `beforeSubmitPrompt`, `afterAgentResponse`, and `stop` to record a turn. Cursor Cloud Agent does not support `sessionStart/sessionEnd`, so summary-protocol injection cannot be guaranteed in the cloud.
 - No platform can guarantee a completion hook when the operating system forcefully terminates the process. Incomplete records are excluded from duration statistics and point allocation.
-
-## Publishing
-
-For local-only use, `npm link` provides the same global-command behavior as an installed package.
-
-Tag pushes are published automatically by [`.github/workflows/publish.yml`](.github/workflows/publish.yml). The workflow uses npm Trusted Publishing through GitHub Actions OIDC, so no `NPM_TOKEN` repository secret is required.
-
-Configure the package's trusted publisher on npmjs.com with organization or user `gepeiyu`, repository `agent-worklog`, workflow filename `publish.yml`, no environment, and `npm publish` as an allowed action. The workflow grants `id-token: write` and installs npm 11 before publishing so the npm CLI can exchange the GitHub OIDC identity for short-lived publish credentials.
-
-Create a release by updating the package version and pushing the resulting commit and tag:
-
-```bash
-npm version patch
-git push origin main --follow-tags
-```
-
-The tag must exactly match `v` followed by the version in `package.json`, for example `v0.2.0`. The workflow rejects mismatched tags, runs the test suite and package-content check, then publishes the public package with provenance. Existing tags must not be reused.
-
-For an emergency manual release, `package.json` already contains `publishConfig.access: "public"`; run `npm publish --access public` from an authenticated local checkout.

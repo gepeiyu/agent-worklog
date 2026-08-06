@@ -190,7 +190,8 @@ tbody tr:hover { background: #fafcfb; }
 }
 .compact-table table { min-width: 640px; table-layout: fixed; }
 .compact-table th:nth-child(1) { width: auto; }
-.compact-table th:nth-child(2), .compact-table th:nth-child(3) { width: 78px; }
+.compact-table th:nth-child(2) { width: 88px; }
+.compact-table th:nth-child(3) { width: 132px; }
 .compact-table th:nth-child(4) { width: 110px; }
 .compact-table th:nth-child(5) { width: 80px; }
 .compact-table td:nth-child(2), .compact-table td:nth-child(3),

@@ -6,6 +6,10 @@
 
 工具不会登录、调用或提交到任何公司系统。数据、汇总和导出内容始终保留在本机，最终提交必须由人完成。
 
+## 仪表盘
+
+![agent-worklog 仪表盘的项目小计与展开轮次明细](docs/assets/dashboard-zh-CN.png)
+
 ## 环境要求
 
 - Node.js 22.12 或更高版本
@@ -167,22 +171,3 @@ agent-worklog dashboard
 - Codex 的正常 `Stop` 轮次可完整记录；进程崩溃或强制终止没有可靠的逐轮结束事件。
 - Cursor 本地 Agent 使用 `sessionStart` 注入摘要约定，并通过 `beforeSubmitPrompt`、`afterAgentResponse`、`stop` 组合记录。Cursor Cloud Agent 不支持 `sessionStart/sessionEnd`，因此云端不能保证摘要约定被注入。
 - 操作系统强制结束进程时，任何平台都无法保证收到结束 hook。未完成记录不会参与耗时统计或点数分摊。
-
-## 发布
-
-只在本机使用时，`npm link` 的效果与全局发布后安装相同。
-
-推送 tag 后，[`.github/workflows/publish.yml`](.github/workflows/publish.yml) 会自动发布。工作流通过 GitHub Actions OIDC 使用 npm Trusted Publishing，不需要在 GitHub 仓库中配置 `NPM_TOKEN` Secret。
-
-在 npmjs.com 的包设置中配置 Trusted Publisher：Organization or user 填 `gepeiyu`，Repository 填 `agent-worklog`，Workflow filename 填 `publish.yml`，Environment 留空，并允许 `npm publish`。工作流已经授予 `id-token: write`，发布前会安装 npm 11，由 npm CLI 使用 GitHub OIDC 身份换取短期发布凭据。
-
-发布新版本时，更新版本号并推送对应提交和 tag：
-
-```bash
-npm version patch
-git push origin main --follow-tags
-```
-
-tag 必须严格等于 `v` 加 `package.json` 中的版本号，例如 `v0.2.0`。工作流会拒绝版本不匹配的 tag，运行测试和发布包检查，然后附带 provenance 公开发布。已有 tag 不应重复使用。
-
-需要紧急手动发布时，`package.json` 已包含 `publishConfig.access: "public"`；在本地完成 npm 登录后运行 `npm publish --access public`。
