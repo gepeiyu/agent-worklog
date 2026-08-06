@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
+import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { runDashboard } from "../src/commands/dashboard.js";
 import {
   dashboardStatus,
   ensureDashboard,
@@ -44,4 +46,46 @@ test("starts one background dashboard and manages its lifecycle", async (context
 
   const stoppedAgain = await stopDashboard({ port: 0 });
   assert.equal(stoppedAgain.stopped, false);
+});
+
+test("rejects an unmanaged legacy dashboard instead of reusing it", async (context) => {
+  process.env.AGENT_WORKLOG_DATA_DIR = await mkdtemp(
+    path.join(os.tmpdir(), "agent-worklog-dashboard-legacy-")
+  );
+
+  const legacyServer = createServer((request, response) => {
+    if (request.url === "/api/meta") {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(JSON.stringify({
+        dataDirectory: process.env.AGENT_WORKLOG_DATA_DIR,
+        filePattern: "YYYY-MM-DD.jsonl"
+      }));
+      return;
+    }
+    response.writeHead(404, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ error: "Not found" }));
+  });
+  await new Promise((resolve, reject) => {
+    legacyServer.once("error", reject);
+    legacyServer.listen(0, "127.0.0.1", resolve);
+  });
+  context.after(() => new Promise((resolve, reject) => {
+    legacyServer.close((error) => error ? reject(error) : resolve());
+  }));
+
+  const port = legacyServer.address().port;
+  const detected = await ensureDashboard({
+    port,
+    spawnProcess() {
+      throw new Error("must not start a second dashboard");
+    }
+  });
+  assert.equal(detected.running, true);
+  assert.equal(detected.managed, false);
+  assert.equal(detected.requiresLegacyCleanup, true);
+
+  await assert.rejects(
+    runDashboard({ action: "start", host: "127.0.0.1", port, open: false }),
+    /stop that process once, then run agent-worklog dashboard/
+  );
 });

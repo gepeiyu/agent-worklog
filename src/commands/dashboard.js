@@ -40,6 +40,7 @@ export async function runDashboard(options = {}) {
   }
 
   const dashboard = await ensureDashboard(lifecycleOptions);
+  if (dashboard.requiresLegacyCleanup) throw legacyDashboardError(dashboard.url);
   process.stdout.write(dashboard.started
     ? `agent-worklog dashboard: started at ${dashboard.url}${versionSuffix(dashboard)}\n`
     : `agent-worklog dashboard: already running at ${dashboard.url}${versionSuffix(dashboard)}\n`);
@@ -60,6 +61,6 @@ function versionSuffix(status) {
 
 function legacyDashboardError(url) {
   return new Error(
-    `Dashboard at ${url} was started by agent-worklog 0.1.1 or earlier; stop that process once, then run dashboard restart`
+    `Dashboard at ${url} was started by agent-worklog 0.1.1 or earlier; stop that process once, then run agent-worklog dashboard`
   );
 }

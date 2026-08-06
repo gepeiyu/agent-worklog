@@ -30,7 +30,11 @@ export async function ensureDashboard({
     if (current.running && current.managed && current.version !== PACKAGE_VERSION) {
       await stopManagedDashboard(paths, current);
     } else if (current.running) {
-      return { ...current, started: false };
+      return {
+        ...current,
+        started: false,
+        requiresLegacyCleanup: !current.managed
+      };
     }
 
     const token = randomUUID();
