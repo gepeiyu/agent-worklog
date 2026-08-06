@@ -172,7 +172,9 @@ agent-worklog dashboard
 
 只在本机使用时，`npm link` 的效果与全局发布后安装相同。
 
-推送 tag 后，[`.github/workflows/publish.yml`](.github/workflows/publish.yml) 会自动发布。参考 `gepeiyu/smart` 的发布方式，工作流从当前仓库的 `NPM_TOKEN` Secret 读取 npm access token，并通过 `NODE_AUTH_TOKEN` 传给 npm。发布前需要在 `agent-worklog` 仓库的 **Settings > Secrets and variables > Actions** 中添加 `NPM_TOKEN`。仅配置在其他仓库（包括 `smart`）中的 Secret 不会自动共享到这里。
+推送 tag 后，[`.github/workflows/publish.yml`](.github/workflows/publish.yml) 会自动发布。工作流通过 GitHub Actions OIDC 使用 npm Trusted Publishing，不需要在 GitHub 仓库中配置 `NPM_TOKEN` Secret。
+
+在 npmjs.com 的包设置中配置 Trusted Publisher：Organization or user 填 `gepeiyu`，Repository 填 `agent-worklog`，Workflow filename 填 `publish.yml`，Environment 留空，并允许 `npm publish`。工作流已经授予 `id-token: write`，发布前会安装 npm 11，由 npm CLI 使用 GitHub OIDC 身份换取短期发布凭据。
 
 发布新版本时，更新版本号并推送对应提交和 tag：
 
@@ -181,6 +183,6 @@ npm version patch
 git push origin main --follow-tags
 ```
 
-tag 必须严格等于 `v` 加 `package.json` 中的版本号，例如 `v0.2.0`。工作流会拒绝版本不匹配的 tag，检查 `NPM_TOKEN` 是否已配置，运行测试和发布包检查，然后附带 provenance 公开发布。`0.1.0` 已经发布，不要再创建 `v0.1.0` tag。
+tag 必须严格等于 `v` 加 `package.json` 中的版本号，例如 `v0.2.0`。工作流会拒绝版本不匹配的 tag，运行测试和发布包检查，然后附带 provenance 公开发布。已有 tag 不应重复使用。
 
 需要紧急手动发布时，`package.json` 已包含 `publishConfig.access: "public"`；在本地完成 npm 登录后运行 `npm publish --access public`。

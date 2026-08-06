@@ -174,7 +174,9 @@ agent-worklog dashboard
 
 For local-only use, `npm link` provides the same global-command behavior as an installed package.
 
-Tag pushes are published automatically by [`.github/workflows/publish.yml`](.github/workflows/publish.yml). Following the release setup used by `gepeiyu/smart`, the workflow reads an npm access token from the `NPM_TOKEN` repository secret and passes it to npm as `NODE_AUTH_TOKEN`. Add `NPM_TOKEN` under the `agent-worklog` repository's **Settings > Secrets and variables > Actions** before running a release. Secrets configured only on another repository, including `smart`, are not available here.
+Tag pushes are published automatically by [`.github/workflows/publish.yml`](.github/workflows/publish.yml). The workflow uses npm Trusted Publishing through GitHub Actions OIDC, so no `NPM_TOKEN` repository secret is required.
+
+Configure the package's trusted publisher on npmjs.com with organization or user `gepeiyu`, repository `agent-worklog`, workflow filename `publish.yml`, no environment, and `npm publish` as an allowed action. The workflow grants `id-token: write` and installs npm 11 before publishing so the npm CLI can exchange the GitHub OIDC identity for short-lived publish credentials.
 
 Create a release by updating the package version and pushing the resulting commit and tag:
 
@@ -183,6 +185,6 @@ npm version patch
 git push origin main --follow-tags
 ```
 
-The tag must exactly match `v` followed by the version in `package.json`, for example `v0.2.0`. The workflow rejects mismatched tags, verifies that `NPM_TOKEN` is configured, runs the test suite and package-content check, then publishes the public package with provenance. Do not create a `v0.1.0` tag because that version has already been published.
+The tag must exactly match `v` followed by the version in `package.json`, for example `v0.2.0`. The workflow rejects mismatched tags, runs the test suite and package-content check, then publishes the public package with provenance. Existing tags must not be reused.
 
 For an emergency manual release, `package.json` already contains `publishConfig.access: "public"`; run `npm publish --access public` from an authenticated local checkout.
